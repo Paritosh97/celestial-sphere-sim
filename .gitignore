@@ -1,11 +1,34 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# Dolphin stuff
+.directory
+.cmake
+
+# vscode stuff
+.vsccode/
+
+# Vim swapfiles
+.*.swp
+
+# build directory
+build/
+
 CMakeLists.txt.user
-CMakeCache.txt
-CMakeFiles
-CMakeScripts
-Testing
+
 Makefile
+CMakeFiles
 cmake_install.cmake
-install_manifest.txt
-compile_commands.json
 CTestTestfile.cmake
-_deps
+ecm_uninstall.cmake
+cmake_uninstall.cmake
