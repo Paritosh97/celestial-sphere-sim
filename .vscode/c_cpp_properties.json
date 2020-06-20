@@ -8,6 +8,7 @@
                 "/usr/include/qt",
                 "/usr/include/qt/Qt3DExtras",
                 "/usr/include/qt/QtGui",
+                "/usr/include/qt/QtCore",
                 "/usr/include/qt/QtCore"
             ],
             "defines": [],
