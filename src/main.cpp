@@ -35,7 +35,8 @@ class SkyPoint;
 Qt3DCore::QEntity* addSkybox()
 {
     Qt3DExtras::QSkyboxEntity* skybox = new Qt3DExtras::QSkyboxEntity;
-    skybox->setBaseName(QUrl::fromLocalFile("../skybox/park").toString());
+    QString path = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/skybox/park").toString();
+    skybox->setBaseName(path);
     skybox->setExtension(".png");
 
     return skybox;
@@ -83,12 +84,12 @@ Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
     buf->setData(bufferBytes);
 
     auto *ra_decAttribute = new Qt3DRender::QAttribute(geometry);
-    ra_decAttribute->setName("ra_dec");
-    ra_decAttribute->setVertexBaseType(Qt3DRender::QAttribute::Double);
+    ra_decAttribute->setName(Qt3DRender::QAttribute::defaultPositionAttributeName());
+    ra_decAttribute->setVertexBaseType(Qt3DRender::QAttribute::Float);
     ra_decAttribute->setVertexSize(2);
     ra_decAttribute->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
     ra_decAttribute->setBuffer(buf);
-    ra_decAttribute->setByteStride(2 * sizeof(double));
+    ra_decAttribute->setByteStride(2 * sizeof(float));
     ra_decAttribute->setCount(2);
     geometry->addAttribute(ra_decAttribute); // We add the vertices in the geometry
 
@@ -99,7 +100,7 @@ Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
     *indices++ = 0;
     *indices++ = 1;
 
-    auto *indexBuffer = new Qt3DRender::QBuffer(geometry);
+    auto *indexBuffer = new Qt3DRender::QBuffer(geometry); 
     indexBuffer->setData(indexBytes);
 
     auto *indexAttribute = new Qt3DRender::QAttribute(geometry);
@@ -109,7 +110,7 @@ Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
     indexAttribute->setCount(2);
     geometry->addAttribute(indexAttribute); // We add the indices linking the points in the geometry
 
-    // mesh
+    // mesh    
     auto *line = new Qt3DRender::QGeometryRenderer(lineRoot);
     line->setGeometry(geometry);
     line->setPrimitiveType(Qt3DRender::QGeometryRenderer::Lines);
@@ -117,9 +118,9 @@ Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
     Qt3DRender::QMaterial *material = new Qt3DRender::QMaterial();
 
     Qt3DRender::QShaderProgram *glShader = new Qt3DRender::QShaderProgram();
-    QUrl shaderURL = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/shaders/projector_vert.glsl");
+    QUrl shaderURL = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/shaders/projector.vert");
     glShader->setVertexShaderCode(Qt3DRender::QShaderProgram::loadSource(shaderURL));
-    shaderURL = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/shaders/projector_frag.glsl");
+    shaderURL = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/shaders/projector.frag");
     glShader->setFragmentShaderCode(Qt3DRender::QShaderProgram::loadSource(shaderURL));
     
     Qt3DRender::QRenderPass *pass = new Qt3DRender::QRenderPass();
@@ -128,17 +129,17 @@ Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
     Qt3DRender::QTechnique *technique = new Qt3DRender::QTechnique();
     technique->graphicsApiFilter()->setApi(Qt3DRender::QGraphicsApiFilter::OpenGL);
     technique->graphicsApiFilter()->setMajorVersion(3);
-    technique->graphicsApiFilter()->setMinorVersion(1);
-    
+    technique->graphicsApiFilter()->setMinorVersion(1);    
     technique->graphicsApiFilter()->setProfile(Qt3DRender::QGraphicsApiFilter::CoreProfile);
     technique->addRenderPass(pass);
 
-    Qt3DRender::QEffect *effect = new Qt3DRender::QEffect();
+    Qt3DRender::QEffect *effect = new Qt3DRender::QEffect(lineRoot);
     effect->addTechnique(technique);
 
     material->setEffect(effect);
 
-    // entity
+    //Qt3DExtras::QPhongMaterial *material = new Qt3DExtras::QPhongMaterial(lineRoot);
+
     auto *lineEntity = new Qt3DCore::QEntity(lineRoot);
     lineEntity->addComponent(line);
     lineEntity->addComponent(material);
@@ -190,8 +191,8 @@ Qt3DCore::QEntity* createTestScene()
     Qt3DCore::QEntity *root = new Qt3DCore::QEntity;
 
     // add skybox
-    //Qt3DCore::QEntity *skybox = addSkybox();
-    //skybox->setParent(root);
+    Qt3DCore::QEntity *skybox = addSkybox();
+    skybox->setParent(root);
 
     // add polyline
     Qt3DCore::QEntity *lines = addLines();

@@ -9,10 +9,10 @@
 #include <Qt3DInput/QInputAspect>
 
 #include <Qt3DRender/QRenderAspect>
+#include <Qt3DRender/QMaterial>
 #include <Qt3DRender/QParameter>
 
 #include <Qt3DExtras/QForwardRenderer>
-#include <Qt3DExtras/QPhongMaterial>
 #include <Qt3DExtras/QCylinderMesh>
 #include <Qt3DExtras/QSphereMesh>
 #include <Qt3DExtras/QTorusMesh>
@@ -58,8 +58,8 @@ Qt3DCore::QEntity *createScene()
     Qt3DCore::QEntity *starsInstanced = new Qt3DCore::QEntity(rootEntity);
     
     Qt3DRender::QGeometryRenderer *sphereGeometryRenderer = new Qt3DRender::QGeometryRenderer(starsInstanced);
-    sphereGeometryRenderer->geometry(instGeom);
-    sphereGeometryRenderer->instanceCount(instGeom->count);
+    sphereGeometryRenderer->setGeometry(instGeom);
+    sphereGeometryRenderer->setInstanceCount(instGeom->count());
 
     Qt3DCore::QTransform *sphereTransform = new Qt3DCore::QTransform;
 
@@ -68,7 +68,7 @@ Qt3DCore::QEntity *createScene()
     Qt3DRender::QParameter *ks = new Qt3DRender::QParameter("ks", QColor::fromRgbF(0.05f, 0.05f, 0.05f, 1.0f));
     Qt3DRender::QParameter *shininess = new Qt3DRender::QParameter("shininess", 150);
     Qt3DRender::QParameter *inst = new Qt3DRender::QParameter("inst", instTransform);
-    Qt3DRender::QParameter *instNormal = new Qt3DRender::QParameter("instNormal", instGeom.normalMatrix(instTransform));
+    Qt3DRender::QParameter *instNormal = new Qt3DRender::QParameter("instNormal", instGeom->normalMatrix(instTransform));
 
     Qt3DRender::QMaterial *material = new Qt3DRender::QMaterial();
     material->addParameter(ka);
