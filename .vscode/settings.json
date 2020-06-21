@@ -76,6 +76,7 @@
         "qgraphicsapifilter": "cpp",
         "qmatrix4x4": "cpp",
         "qeffect": "cpp",
-        "qbuffer": "cpp"
+        "qbuffer": "cpp",
+        "qgeometry": "cpp"
     }
 }

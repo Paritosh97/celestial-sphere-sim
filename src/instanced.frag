@@ -1,4 +1,4 @@
-#version 330 core
+#version 450 core
 
 // copy of phong.frag from qt3d extras
 
