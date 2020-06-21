@@ -4,20 +4,29 @@
 #include <QQmlContext>
 #include <QQmlEngine>
 
+#include "typedef.h"
+
 #include "instancedgeometry.h"
+
+#include "skypoint.h"
+#include "linelist.h"
+
+class SkyPoint;
 
 int main(int argc, char* argv[])
 {
     QGuiApplication app(argc, argv);
 
     QVector<QVector3D> pos;
-    pos << QVector3D(1, 1, 0);
-    pos << QVector3D(-1, 2, 8);
-    pos << QVector3D(1, 1, 7);
-    pos << QVector3D(0, 0, 4);
-    pos << QVector3D(1, 5, 1);
-    pos << QVector3D(-3, 3, 0);
-    pos << QVector3D(2, 2, -2);
+    for(int i = 1; i < 10; i++)
+    {
+        dms *ra = new dms(i*36);
+        dms *dec = new dms(i*30);
+        std::shared_ptr<SkyPoint>  point(new SkyPoint(*ra, *dec));
+
+        pos.append(QVector3D(point->ra().radians(), point->dec().radians(), 0));
+    }
+    qDebug()<<pos;
 
     InstancedGeometry instGeom;
     instGeom.setPoints(pos);

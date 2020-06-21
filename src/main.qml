@@ -32,14 +32,19 @@ Entity {
     Camera {
         id: camera
         projectionType: CameraLens.PerspectiveProjection
-        fieldOfView: 45
+        fieldOfView: 60
         aspectRatio: _window.width / _window.height
-        nearPlane: 0.1
-        farPlane: 100.0
+        nearPlane: 0.01
+        farPlane: 1000.0
         position: Qt.vector3d(0.0, 10.0, 20.0)
         viewCenter: Qt.vector3d(0.0, 0.0, 0.0)
         upVector: Qt.vector3d(0.0, 1.0, 0.0)
     }
+
+    SkyboxEntity {
+       baseName: "file:./../skybox/park"
+       extension: ".png"
+   }
 
     FirstPersonCameraController { camera: camera }
 

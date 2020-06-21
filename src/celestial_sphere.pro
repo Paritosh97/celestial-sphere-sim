@@ -1,6 +1,10 @@
 TEMPLATE = app
 QT += 3dcore 3drender 3dinput 3dquick qml quick 3dquickextras 3dextras
 
+CONFIG += link_pkgconfig
+PKGCONFIG += eigen3
+
+
 # The following define makes your compiler emit warnings if you use
 # any Qt feature that has been marked deprecated (the exact warnings
 # depend on your compiler). Refer to the documentation for the
@@ -14,7 +18,11 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += \
         main.cpp \
-    instancedgeometry.cpp
+        auxiliary/dms.cpp   \
+        auxiliary/cachingdms.cpp    \
+        skypoint.cpp    \
+        ksnumbers.cpp   \
+        instancedgeometry.cpp
 
 RESOURCES += qml.qrc \
     shaders.qrc
@@ -31,4 +39,8 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 HEADERS += \
-    instancedgeometry.h
+    instancedgeometry.h \
+    auxiliary/dms.h \
+    auxiliary/cachingdms.h    \
+    skypoint.h    \
+    ksnumbers.h 
