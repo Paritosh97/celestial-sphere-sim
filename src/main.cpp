@@ -12,6 +12,7 @@
 #include <Qt3DRender/QRenderPass>
 #include <Qt3DRender/QTechnique>
 #include <Qt3DRender/QGraphicsApiFilter>
+#include <Qt3DRender/QParameter>
 #include <Qt3DRender/QEffect>
 #include <Qt3DRender/QBuffer>
 
@@ -42,56 +43,49 @@ Qt3DCore::QEntity* addSkybox()
     return skybox;
 }
 
-void fillLineList(std::shared_ptr<LineList> lineList, int j)
-{
-    for(int i = 1; i < 10; i++)
-    {
-        std::shared_ptr<SkyPoint>  point(new SkyPoint(i*j*10, i*j*20));
-        lineList->append(point);
-    }    
-}
-
-std::shared_ptr<LineListList> fillLineListList()
-{
-    std::shared_ptr<LineListList> lineListList(new LineListList);
-
-    for(int i = 1; i < 10; i++)
-    {
-        std::shared_ptr<LineList> lineList(new LineList);
-        fillLineList(lineList, i);
-        lineListList->append(lineList);
-    }
-
-    return lineListList;
-}
-
-Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
+Qt3DCore::QEntity* addLine()
 {   
     Qt3DCore::QEntity* lineRoot = new Qt3DCore::QEntity();
 
     auto *geometry = new Qt3DRender::QGeometry(lineRoot);
 
+    // random sky points
+    SkyPoint *p[2];
+    for(int i = 0; i < 2; i++)
+    {
+        dms *ra = new dms(10*i);
+        dms *dec = new dms(20*i);
+        p[i] = new SkyPoint();
+    }    
+
     // sending ra and dec
     QByteArray bufferBytes;
-    bufferBytes.resize(2 * 2 * sizeof(double));
+    bufferBytes.resize(3 * 2 * sizeof(double));
     double *ra_dec = reinterpret_cast<double*>(bufferBytes.data());
-    *ra_dec++ = pLast->ra().radians();
-    *ra_dec++ = pLast->dec().radians();
-    *ra_dec++ = pThis->ra().radians();
-    *ra_dec++ = pThis->dec().radians();
+    *ra_dec++ = p[0]->ra().radians();
+    *ra_dec++ = p[0]->dec().radians();
+    *ra_dec++ = 0;  // Sending 0 for z cordinate
+    *ra_dec++ = p[1]->ra().radians();
+    *ra_dec++ = p[1]->dec().radians();
+    *ra_dec++ = 0;
 
     auto *buf = new Qt3DRender::QBuffer(geometry);
     buf->setData(bufferBytes);
 
+    // setting pos in vertex shader in ra dec form
     auto *ra_decAttribute = new Qt3DRender::QAttribute(geometry);
-    ra_decAttribute->setName(Qt3DRender::QAttribute::defaultPositionAttributeName());
-    ra_decAttribute->setVertexBaseType(Qt3DRender::QAttribute::Float);
-    ra_decAttribute->setVertexSize(2);
     ra_decAttribute->setAttributeType(Qt3DRender::QAttribute::VertexAttribute);
     ra_decAttribute->setBuffer(buf);
-    ra_decAttribute->setByteStride(2 * sizeof(float));
+    ra_decAttribute->setVertexBaseType(Qt3DRender::QAttribute::Float);
+    ra_decAttribute->setVertexSize(3);
+    ra_decAttribute->setName(Qt3DRender::QAttribute::defaultPositionAttributeName());
+    ra_decAttribute->setName("pos");
+    ra_decAttribute->setDivisor( 1 );
+    ra_decAttribute->setByteStride(3 * sizeof(float));
     ra_decAttribute->setCount(2);
+
     geometry->addAttribute(ra_decAttribute); // We add the vertices in the geometry
+    geometry->setBoundingVolumePositionAttribute( ra_decAttribute );
 
     // connectivity between vertices
     QByteArray indexBytes;
@@ -115,25 +109,35 @@ Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
     line->setGeometry(geometry);
     line->setPrimitiveType(Qt3DRender::QGeometryRenderer::Lines);
 
-    Qt3DRender::QMaterial *material = new Qt3DRender::QMaterial();
+    Qt3DRender::QParameter *ka = new Qt3DRender::QParameter("ka", QColor::fromRgbF(0.05f, 0.05f, 0.05f, 1.0f));
+    Qt3DRender::QParameter *kd = new Qt3DRender::QParameter("kd", QColor::fromRgbF(0.7f, 0.7f, 0.7f, 1.0f));
+    Qt3DRender::QParameter *ks = new Qt3DRender::QParameter("ks", QColor::fromRgbF(0.01f, 0.01f, 0.01f, 1.0f));
+    Qt3DRender::QParameter *shininess = new Qt3DRender::QParameter("shininess", 150);
 
-    Qt3DRender::QShaderProgram *glShader = new Qt3DRender::QShaderProgram();
+    Qt3DRender::QMaterial *material = new Qt3DRender::QMaterial(lineRoot);
+    material->addParameter(ka);
+    material->addParameter(kd);
+    material->addParameter(ks);
+    material->addParameter(shininess);
+
+    Qt3DRender::QEffect *effect = new Qt3DRender::QEffect(material);
+    Qt3DRender::QTechnique *technique = new Qt3DRender::QTechnique(effect);
+    Qt3DRender::QRenderPass *pass = new Qt3DRender::QRenderPass(technique);
+    Qt3DRender::QShaderProgram *glShader = new Qt3DRender::QShaderProgram(pass);
+
     QUrl shaderURL = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/shaders/projector.vert");
     glShader->setVertexShaderCode(Qt3DRender::QShaderProgram::loadSource(shaderURL));
     shaderURL = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/shaders/projector.frag");
     glShader->setFragmentShaderCode(Qt3DRender::QShaderProgram::loadSource(shaderURL));
     
-    Qt3DRender::QRenderPass *pass = new Qt3DRender::QRenderPass();
     pass->setShaderProgram(glShader);
 
-    Qt3DRender::QTechnique *technique = new Qt3DRender::QTechnique();
     technique->graphicsApiFilter()->setApi(Qt3DRender::QGraphicsApiFilter::OpenGL);
     technique->graphicsApiFilter()->setMajorVersion(3);
     technique->graphicsApiFilter()->setMinorVersion(1);    
     technique->graphicsApiFilter()->setProfile(Qt3DRender::QGraphicsApiFilter::CoreProfile);
     technique->addRenderPass(pass);
 
-    Qt3DRender::QEffect *effect = new Qt3DRender::QEffect(lineRoot);
     effect->addTechnique(technique);
 
     material->setEffect(effect);
@@ -147,55 +151,16 @@ Qt3DCore::QEntity* addLine(SkyPoint *pLast, SkyPoint *pThis)
     return lineRoot;
 }
 
-Qt3DCore::QEntity* addSkyPolyline(LineList *lineList)
-{
-    Qt3DCore::QEntity* skyPolyLine = new Qt3DCore::QEntity();
-
-    SkyList *points = lineList->points();
-
-    for (int j = 1; j < points->size(); j++)
-    {
-        SkyPoint *pLast = points->at(j++).get();
-        SkyPoint *pThis = points->at(j).get();
-
-        //qDebug()<<"Right Ascension : "<<(pThis->ra().degree());
-        //qDebug()<<"Decination : "<<(pThis->dec().degree());
-
-        Qt3DCore::QEntity* line = addLine(pLast, pThis);
-        line->setParent(skyPolyLine);
-    }
-
-    return skyPolyLine;
-}
-
-Qt3DCore::QEntity* addLines()
-{
-    // Add lines on the celestial sphere
-    Qt3DCore::QEntity* lines = new Qt3DCore::QEntity();
-
-    std::shared_ptr<LineListList> lineListList = fillLineListList();
-
-    for (int i = 0; i < lineListList->size(); i++)
-    {
-        std::shared_ptr<LineList> lineList = lineListList->at(i);
-
-        Qt3DCore::QEntity* line = addSkyPolyline(lineList.get());
-        line->setParent(lines);
-    }
-    
-    return lines;
-}
-
 Qt3DCore::QEntity* createTestScene()
 {
     Qt3DCore::QEntity *root = new Qt3DCore::QEntity;
 
     // add skybox
-    Qt3DCore::QEntity *skybox = addSkybox();
-    skybox->setParent(root);
+    //Qt3DCore::QEntity *skybox = addSkybox();
+    //skybox->setParent(root);
 
     // add polyline
-    Qt3DCore::QEntity *lines = addLines();
+    Qt3DCore::QEntity *lines = addLine();
     lines->setParent(root);
 
     return root;
