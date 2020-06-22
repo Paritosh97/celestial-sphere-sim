@@ -77,6 +77,8 @@
         "qmatrix4x4": "cpp",
         "qeffect": "cpp",
         "qbuffer": "cpp",
-        "qgeometry": "cpp"
+        "qgeometry": "cpp",
+        "qrenderaspect": "cpp",
+        "qinputsettings": "cpp"
     }
 }

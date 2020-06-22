@@ -42,8 +42,8 @@ highp vec3 equirectangular_projection()
     highp vec3 screen_pos;
 
     highp float zoomFactor = 1;  // TODO Should get zoomfactor
-    highp float height = 1080;   // TODO Should get height
-    highp float width = 1920;    // TODO should get width
+    highp float height = 10;   // TODO Should get height
+    highp float width = 15;    // TODO should get width
     highp vec2 focus = vec2(0, 0);   // TODO Should get ra nad dec of the focus
 
     dX   = pos.x - focus.x;

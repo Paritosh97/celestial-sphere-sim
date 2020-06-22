@@ -90,9 +90,8 @@ Entity {
                 Parameter { name: "kd"; value: Qt.rgba(0.7, 0.7, 0.7, 1.0) },
                 Parameter { name: "ks"; value: Qt.rgba(0.01, 0.01, 0.01, 1.0) },
                 Parameter { name: "shininess"; value: 150. },
-
                 Parameter { name: "inst"; value: myEntity.instTransform },
-                Parameter { name: "instNormal"; value: _instg.normalMatrix( myEntity.instTransform ) }  // normal matrix (actually just 3x3)
+                Parameter { name: "instNormal"; value: _instg.normalMatrix( myEntity.instTransform ) }
             ]
 
             effect: Effect {
