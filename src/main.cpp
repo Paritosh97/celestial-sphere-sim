@@ -50,25 +50,30 @@ Qt3DCore::QEntity* addLine()
     auto *geometry = new Qt3DRender::QGeometry(lineRoot);
 
     // random sky points
-    SkyPoint *p[2];
+    QVector<QVector3D> pos;
     for(int i = 0; i < 2; i++)
     {
-        dms *ra = new dms(10*i);
-        dms *dec = new dms(20*i);
-        p[i] = new SkyPoint();
-    }    
+        dms *ra = new dms(100*i);
+        dms *dec = new dms(100*i);
+        SkyPoint *point = new SkyPoint(*ra, *dec);
+
+        pos.append(QVector3D(point->ra().radians(), point->dec().radians(), 0));
+    }
+    qDebug()<<pos;
+    
 
     // sending ra and dec
     QByteArray bufferBytes;
-    bufferBytes.resize(3 * 2 * sizeof(double));
-    double *ra_dec = reinterpret_cast<double*>(bufferBytes.data());
-    *ra_dec++ = p[0]->ra().radians();
-    *ra_dec++ = p[0]->dec().radians();
-    *ra_dec++ = 0;  // Sending 0 for z cordinate
-    *ra_dec++ = p[1]->ra().radians();
-    *ra_dec++ = p[1]->dec().radians();
-    *ra_dec++ = 0;
-
+    bufferBytes.resize(3 * 2 * sizeof(float));
+    float *ra_dec = reinterpret_cast<float*>(bufferBytes.data());
+    int idx = 0;
+    for ( const auto v : pos )
+    {
+        ra_dec[idx++] = v.x();
+        ra_dec[idx++] = v.y();
+        ra_dec[idx++] = 0;
+    }
+    
     auto *buf = new Qt3DRender::QBuffer(geometry);
     buf->setData(bufferBytes);
 
@@ -80,7 +85,6 @@ Qt3DCore::QEntity* addLine()
     ra_decAttribute->setVertexSize(3);
     ra_decAttribute->setName(Qt3DRender::QAttribute::defaultPositionAttributeName());
     ra_decAttribute->setName("pos");
-    ra_decAttribute->setDivisor( 1 );
     ra_decAttribute->setByteStride(3 * sizeof(float));
     ra_decAttribute->setCount(2);
 
@@ -108,6 +112,7 @@ Qt3DCore::QEntity* addLine()
     auto *line = new Qt3DRender::QGeometryRenderer(lineRoot);
     line->setGeometry(geometry);
     line->setPrimitiveType(Qt3DRender::QGeometryRenderer::Lines);
+
 
     Qt3DRender::QParameter *ka = new Qt3DRender::QParameter("ka", QColor::fromRgbF(0.05f, 0.05f, 0.05f, 1.0f));
     Qt3DRender::QParameter *kd = new Qt3DRender::QParameter("kd", QColor::fromRgbF(0.7f, 0.7f, 0.7f, 1.0f));
@@ -156,8 +161,8 @@ Qt3DCore::QEntity* createTestScene()
     Qt3DCore::QEntity *root = new Qt3DCore::QEntity;
 
     // add skybox
-    //Qt3DCore::QEntity *skybox = addSkybox();
-    //skybox->setParent(root);
+    Qt3DCore::QEntity *skybox = addSkybox();
+    skybox->setParent(root);
 
     // add polyline
     Qt3DCore::QEntity *lines = addLine();
