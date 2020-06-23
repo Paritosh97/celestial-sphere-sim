@@ -79,6 +79,7 @@
         "qbuffer": "cpp",
         "qgeometry": "cpp",
         "qrenderaspect": "cpp",
-        "qinputsettings": "cpp"
+        "qinputsettings": "cpp",
+        "qguiapplication": "cpp"
     }
 }

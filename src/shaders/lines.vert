@@ -1,18 +1,8 @@
-#version 450 core
+#version 450
 
-in vec3 vertexPosition;
-in vec3 vertexNormal;
-in vec3 pos;
-
-out vec3 worldPosition;
-out vec3 worldNormal;
-
-uniform mat4 modelView;
-uniform mat3 modelViewNormal;
 uniform mat4 modelViewProjection;
 
-uniform mat4 inst;  // transform of individual object instance
-uniform mat4 instNormal;  // should be mat3 but Qt3D only supports mat4...
+in vec3 vertexPosition;
 
 highp float reduceAngle(highp float x, highp float minimum, highp float maximum)
 {
@@ -46,8 +36,8 @@ highp vec3 equirectangular_projection()
     highp float width = 15;    // TODO should get width
     highp vec2 focus = vec2(0, 0);   // TODO Should get ra nad dec of the focus
 
-    dX   = pos.x - focus.x;
-    Y    = pos.y;
+    dX   = vertexPosition.x - focus.x;
+    Y    = vertexPosition.y;
     screen_pos.y = 0.5 * height - zoomFactor * (Y - focus.y);
 
     dX = reduceAngle(dX, -3.1415, 3.1415);
@@ -89,8 +79,8 @@ highp vec3 projector()
     highp float Y, dX;
     highp float sindX, cosdX, sinY, cosY;
 
-    dX = highp float(pos.x);
-    Y = highp float(pos.y);
+    dX = highp float(vertexPosition.x);
+    Y = highp float(vertexPosition.y);
 
     dX = reduceAngle(dX, -3.1415, 3.1415);
 
@@ -105,7 +95,6 @@ highp vec3 projector()
 
     // TODO visibility
     
-    // TODO switch projection mode
     highp float k = 0;
     switch(projection_mode)
     {
@@ -142,14 +131,9 @@ highp vec3 projector()
     return screen_pos;
 }
 
-void main()
+void main(void)
 {
     highp vec3 projected_pos = projector();
-    
-    vec4 offsetPos = inst * vec4(vertexPosition, 1.0) + vec4(projected_pos, 0.0);
 
-    worldNormal = normalize(mat3(instNormal) * vertexNormal);
-    worldPosition = vec3(offsetPos);
-
-    gl_Position = modelViewProjection * offsetPos;
+    gl_Position = modelViewProjection * vec4(projected_pos, 1);
 }

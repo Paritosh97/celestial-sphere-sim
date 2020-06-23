@@ -17,8 +17,8 @@ set(SOURCES
     auxiliary/cachingdms.cpp
     skypoint.cpp
     ksnumbers.cpp
-    computematerial.cpp
-    computeframegraph.cpp
+    linegeometry.cpp
+    linematerial.cpp
     main.cpp
     )
 

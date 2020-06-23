@@ -1,55 +1,37 @@
-//*************************************************************************************************************
-//=============================================================================================================
-// INCLUDES
-//=============================================================================================================
-
-
-#include "computeframegraph.h"
-#include "computematerial.h"
-
-//*************************************************************************************************************
-//=============================================================================================================
-// QT INCLUDES
-//=============================================================================================================
-
+#include <QColor>
+#include <QDebug>
+#include <QObject>
+#include <QPropertyAnimation>
+#include <QThread>
+#include <QVector3D>
 #include <QGuiApplication>
-#include <Qt3DExtras/Qt3DWindow>
-#include <Qt3DExtras/QCylinderMesh>
-#include <Qt3DExtras/QSphereGeometry>
-#include <Qt3DExtras/QFirstPersonCameraController>
-#include <QByteArray>
-#include <Qt3DCore>
-#include <Qt3DRender>
-#include <iostream>
 
+#include <Qt3DCore/QEntity>
+#include <Qt3DCore/QTransform>
+#include <Qt3DExtras/QCuboidMesh>
+#include <Qt3DExtras/QForwardRenderer>
+#include <Qt3DExtras/QOrbitCameraController>
+#include <Qt3DExtras/QPhongAlphaMaterial>
+#include <Qt3DExtras/QPlaneMesh>
+#include <Qt3DExtras/QSphereMesh>
+#include <Qt3DExtras/Qt3DWindow>
+#include <Qt3DExtras/qorbitcameracontroller.h>
 #include <Qt3DExtras/QSkyboxEntity>
 
+#include <Qt3DRender/QCamera>
+#include <Qt3DRender/QGeometry>
+#include <Qt3DRender/QGeometryRenderer>
+#include <Qt3DRender/QMaterial>
+#include <Qt3DExtras/QFirstPersonCameraController>
 
-//*************************************************************************************************************
-//=============================================================================================================
-// USED NAMESPACES
-//=============================================================================================================
+#include "linegeometry.h"
+#include "linematerial.h"
 
-using namespace Qt3DRender;
+#include "skypoint.h"
+#include "linelist.h"
+#include "typedef.h"
 
-//*************************************************************************************************************
-//=============================================================================================================
-// GLOBAL VARIABLES
-//=============================================================================================================
-
-const int PARTICLE_COUNT = 50 * 1024;
-
-//*************************************************************************************************************
-//=============================================================================================================
-// FORWARD DECLARATION
-//=============================================================================================================
-
-QByteArray buildParticleBuffer();
-
-//*************************************************************************************************************
-//=============================================================================================================
-// MAIN
-//=============================================================================================================
+class SkyPoint;
 
 Qt3DCore::QEntity* addSkybox()
 {
@@ -61,131 +43,84 @@ Qt3DCore::QEntity* addSkybox()
     return skybox;
 }
 
-
-QByteArray buildParticleBuffer()
-{
-    const int byteSizeOfParticleData = 12;
-    const float factor = 500.0f;
-    QByteArray bufferData;
-    bufferData.resize(PARTICLE_COUNT * byteSizeOfParticleData * (int)sizeof(float));
-    float *rawVertexArray = reinterpret_cast<float *>(bufferData.data());
-
-    for(int i = 0 ; i < PARTICLE_COUNT; i++)
-    {
-        const int positionIdx = i * byteSizeOfParticleData;
-        const int velocityIdx = i * byteSizeOfParticleData + 4;
-        const int colorIdx = i * byteSizeOfParticleData + 8;
-
-        for(int j = 0; j < 3; j++)
-        {
-            rawVertexArray[positionIdx + j] = ((static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) - 0.5f) * factor;
-            rawVertexArray[velocityIdx + j] = (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) * 2.0f;
-            rawVertexArray[colorIdx + j] = 0.75f + std::sin(((i / 1024.0f) + j * 0.333f) * 6.0f) * 0.25f;
-        }
-        rawVertexArray[positionIdx + 3] = 1.0f;
-        rawVertexArray[velocityIdx + 3] = 0.0f;
-        rawVertexArray[colorIdx + 3] = 1.0f;
-    }
-    return bufferData;
-}
-
 Qt3DCore::QEntity *createScene()
 {
-    Qt3DCore::QEntity *root = new Qt3DCore::QEntity();
+    // Root entity
+    Qt3DCore::QEntity *lineEntity = new Qt3DCore::QEntity;
 
-    //init buffer
-    Qt3DRender::QBuffer *particleBuffer = new Qt3DRender::QBuffer(Qt3DRender::QBuffer::VertexBuffer);
-    QByteArray particleByteArray = buildParticleBuffer();
-    particleBuffer->setData(particleByteArray);
+    QMatrix4x4 instTransform = QMatrix4x4(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1);
 
-    //Compute material
-    COMPUTESHADER::ComputeMaterial *computeMaterial = new COMPUTESHADER::ComputeMaterial();
-    computeMaterial->setVertexBuffer(particleBuffer);
+    QVector<QVector3D> pos;
+    for(int i = 1; i <= 2; i++)
+    {
+        dms *ra = new dms(i*36);
+        dms *dec = new dms(i*30);
+        std::shared_ptr<SkyPoint>  point(new SkyPoint(*ra, *dec));
 
-    //compute entity
-    Qt3DCore::QEntity *particleComputeEntity = new Qt3DCore::QEntity(root);
-    QComputeCommand *particlesComputeJob = new QComputeCommand();
-    particleComputeEntity->addComponent(particlesComputeJob);
-    particleComputeEntity->addComponent(computeMaterial);
+        pos.append(QVector3D(point->ra().radians(), point->dec().radians(), 0));
+    }
+    qDebug()<<pos;
 
-    //Attributes of Geometry
-    QAttribute *particlePositionDataAttribute = new QAttribute();
-    particlePositionDataAttribute->setName(QStringLiteral("particlePosition"));
-    particlePositionDataAttribute->setAttributeType(QAttribute::VertexAttribute);
-    particlePositionDataAttribute->setVertexBaseType(QAttribute::Float);
-    particlePositionDataAttribute->setVertexSize(3);
-    particlePositionDataAttribute->setDivisor(1);
-    particlePositionDataAttribute->setByteOffset(0);
-    particlePositionDataAttribute->setByteStride(12 * (int)sizeof(float));
-    particlePositionDataAttribute->setBuffer(particleBuffer);
+    // Line Geometry
+    LineGeometry *lineGeometry = new LineGeometry();
+    lineGeometry->setPoints(pos);
 
-    QAttribute *particleColorDataAttribute = new QAttribute();
-    particleColorDataAttribute->setName(QStringLiteral("particleColor"));
-    particleColorDataAttribute->setAttributeType(QAttribute::VertexAttribute);
-    particleColorDataAttribute->setVertexBaseType(QAttribute::Float);
-    particleColorDataAttribute->setVertexSize(3);
-    particleColorDataAttribute->setDivisor(1);
-    particleColorDataAttribute->setByteOffset(8 * (int)sizeof(float));
-    particleColorDataAttribute->setByteStride(12 * (int)sizeof(float));
-    particleColorDataAttribute->setBuffer(particleBuffer);
+    // line Geometry Renderer
+    Qt3DRender::QGeometryRenderer *lineGeometryRenderer = new Qt3DRender::QGeometryRenderer;
+    lineGeometryRenderer->setPrimitiveType( Qt3DRender::QGeometryRenderer::Lines);
+    lineGeometryRenderer->setGeometry( lineGeometry );
+    lineGeometryRenderer->setVertexCount( lineGeometry->count() );
 
-    //Geometry
-    Qt3DExtras::QSphereGeometry *sphereGeometry = new Qt3DExtras::QSphereGeometry();
-    sphereGeometry->setRings(10);
-    sphereGeometry->setSlices(10);
-    sphereGeometry->setRadius(1);
-    sphereGeometry->addAttribute(particlePositionDataAttribute);
-    sphereGeometry->addAttribute(particleColorDataAttribute);
+    // line Material
+    LineMaterial *lineMaterial = new LineMaterial();
 
+    // line Transform
+    Qt3DCore::QTransform *lineTransform = new Qt3DCore::QTransform();
+    lineTransform->setTranslation(QVector3D(0.0f, 1.5f, 0.0f));
 
-    //particle render entity
-    Qt3DCore::QEntity *particleRenderEntity = new Qt3DCore::QEntity(root);
-    QGeometryRenderer *particleRenderer = new QGeometryRenderer();
-    particleRenderer->setPrimitiveType(Qt3DRender::QGeometryRenderer::Triangles);
-    particleRenderer->setInstanceCount(PARTICLE_COUNT);
-    particleRenderer->setIndexOffset(0);
-    particleRenderer->setFirstInstance(0);
-    particleRenderer->setGeometry(sphereGeometry);
+    // line Entity
+    lineEntity->addComponent(lineMaterial);
+    lineEntity->addComponent(lineGeometryRenderer);
+    lineEntity->addComponent(lineTransform);
+    lineEntity->setEnabled(true);
 
-    particleRenderEntity->addComponent(particleRenderer);
-    particleRenderEntity->addComponent(computeMaterial);
-
-    return root;
+    return lineEntity;
 }
 
-
-int main(int argc, char* argv[])
+int main(int argc, char *argv[])
 {
+    // Application
     QGuiApplication app(argc, argv);
 
-    Qt3DExtras::Qt3DWindow view;
+    // Window
+    Qt3DExtras::Qt3DWindow *view = new Qt3DExtras::Qt3DWindow();
 
+    // Root entity
     Qt3DCore::QEntity *rootEntity = new Qt3DCore::QEntity();
 
-    //create camera
-    QCamera *pCamera = new QCamera;
-    pCamera->setProjectionType(QCameraLens::PerspectiveProjection);
-    pCamera->setViewCenter(QVector3D(0, 0, 0));
-    pCamera->setPosition(QVector3D(0, 0, -800.0));
-    pCamera->setNearPlane(0.1f);
-    pCamera->setFarPlane(1000.0f);
-    pCamera->setFieldOfView(25.0f);
-    pCamera->setAspectRatio(1.33f);
+    // Camera
+    Qt3DRender::QCamera *camera = view->camera();
+    camera->lens()->setPerspectiveProjection(60.0f, 16.0f/9.0f, 0.1f, 100.0f);
+    QVector3D originalPosition(0, 10.0f, 20.0f);
+    camera->setPosition(originalPosition);
+    QVector3D originalViewCenter(0, 0, 0);
+    camera->setViewCenter(originalViewCenter);
+    QVector3D upVector(0, 1.0, 0);
+    camera->setUpVector(upVector);
 
-    //Compute framegraph
-    COMPUTESHADER::ComputeFramegraph *framegraph = new COMPUTESHADER::ComputeFramegraph();
-    framegraph->setCamera(pCamera);
+    // Camera control
+    Qt3DExtras::QFirstPersonCameraController *camController = new Qt3DExtras::QFirstPersonCameraController(rootEntity);
+    camController->setCamera(camera);
 
-    Qt3DExtras::QFirstPersonCameraController *pCamController = new Qt3DExtras::QFirstPersonCameraController(rootEntity);
-    pCamController->setCamera(pCamera);
+    Qt3DCore::QEntity *scene = createScene();
+    scene->setParent(rootEntity);
 
-    Qt3DCore::QEntity *paritcleEntity = createScene();
-    paritcleEntity->setParent(rootEntity);
+    // add skybox
+    Qt3DCore::QEntity *skyboxEntity = addSkybox();
+    skyboxEntity->setParent(rootEntity);
 
-    view.setRootEntity(rootEntity);
-    view.setActiveFrameGraph(framegraph);
-
-    view.show();
+    view->setRootEntity(rootEntity);
+    view->show();
 
     return app.exec();
 }
