@@ -1,47 +1,55 @@
-#include <Qt3DQuickExtras/qt3dquickwindow.h>
+//*************************************************************************************************************
+//=============================================================================================================
+// INCLUDES
+//=============================================================================================================
+
+
+#include "computeframegraph.h"
+#include "computematerial.h"
+
+//*************************************************************************************************************
+//=============================================================================================================
+// QT INCLUDES
+//=============================================================================================================
 
 #include <QGuiApplication>
+#include <Qt3DExtras/Qt3DWindow>
+#include <Qt3DExtras/QCylinderMesh>
+#include <Qt3DExtras/QSphereGeometry>
+#include <Qt3DExtras/QFirstPersonCameraController>
+#include <QByteArray>
+#include <Qt3DCore>
+#include <Qt3DRender>
+#include <iostream>
 
-#include <Qt3DCore/QEntity>
-#include <Qt3DCore/QTransform>
-#include <Qt3DCore/QAspectEngine>
-
-#include <Qt3DRender/QRenderAspect>
-#include <Qt3DRender/QRenderSurfaceSelector>
-#include <Qt3DRender/QViewport>
-#include <Qt3DRender/QCameraSelector>
-#include <Qt3DRender/QClearBuffers>
-#include <Qt3DRender/QRenderSettings>
-#include <Qt3DRender/QMaterial>
-#include <Qt3DRender/QCamera>
-#include <Qt3DRender/QCameraLens>
-#include <Qt3DRender/QParameter>
-#include <Qt3DRender/QGeometryRenderer>
-#include <Qt3DRender/QEffect>
-#include <Qt3DRender/QTechnique>
-#include <Qt3DRender/QRenderPass>
-#include <Qt3DRender/QGraphicsApiFilter>
-#include <Qt3DRender/QShaderProgram>
-
-#include <Qt3DExtras/QForwardRenderer>
-#include <Qt3DExtras/QPlaneMesh>
-#include <Qt3DExtras/QSphereMesh>
-#include <Qt3DExtras/QPhongMaterial>
-#include <Qt3DExtras/QTorusMesh>
 #include <Qt3DExtras/QSkyboxEntity>
-#include <Qt3DExtras/QOrbitCameraController>
 
-#include <QUrl>
 
-#include "qt3dwindow.h"
+//*************************************************************************************************************
+//=============================================================================================================
+// USED NAMESPACES
+//=============================================================================================================
 
-#include "instancedgeometry.h"
+using namespace Qt3DRender;
 
-#include "skypoint.h"
-#include "linelist.h"
-#include "typedef.h"
+//*************************************************************************************************************
+//=============================================================================================================
+// GLOBAL VARIABLES
+//=============================================================================================================
 
-class SkyPoint;
+const int PARTICLE_COUNT = 50 * 1024;
+
+//*************************************************************************************************************
+//=============================================================================================================
+// FORWARD DECLARATION
+//=============================================================================================================
+
+QByteArray buildParticleBuffer();
+
+//*************************************************************************************************************
+//=============================================================================================================
+// MAIN
+//=============================================================================================================
 
 Qt3DCore::QEntity* addSkybox()
 {
@@ -53,74 +61,98 @@ Qt3DCore::QEntity* addSkybox()
     return skybox;
 }
 
+
+QByteArray buildParticleBuffer()
+{
+    const int byteSizeOfParticleData = 12;
+    const float factor = 500.0f;
+    QByteArray bufferData;
+    bufferData.resize(PARTICLE_COUNT * byteSizeOfParticleData * (int)sizeof(float));
+    float *rawVertexArray = reinterpret_cast<float *>(bufferData.data());
+
+    for(int i = 0 ; i < PARTICLE_COUNT; i++)
+    {
+        const int positionIdx = i * byteSizeOfParticleData;
+        const int velocityIdx = i * byteSizeOfParticleData + 4;
+        const int colorIdx = i * byteSizeOfParticleData + 8;
+
+        for(int j = 0; j < 3; j++)
+        {
+            rawVertexArray[positionIdx + j] = ((static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) - 0.5f) * factor;
+            rawVertexArray[velocityIdx + j] = (static_cast<float>(std::rand()) / static_cast<float>(RAND_MAX)) * 2.0f;
+            rawVertexArray[colorIdx + j] = 0.75f + std::sin(((i / 1024.0f) + j * 0.333f) * 6.0f) * 0.25f;
+        }
+        rawVertexArray[positionIdx + 3] = 1.0f;
+        rawVertexArray[velocityIdx + 3] = 0.0f;
+        rawVertexArray[colorIdx + 3] = 1.0f;
+    }
+    return bufferData;
+}
+
 Qt3DCore::QEntity *createScene()
 {
-    // Root entity
-    Qt3DCore::QEntity *spheres = new Qt3DCore::QEntity;
+    Qt3DCore::QEntity *root = new Qt3DCore::QEntity();
 
-    QMatrix4x4 instTransform = QMatrix4x4(1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1);
+    //init buffer
+    Qt3DRender::QBuffer *particleBuffer = new Qt3DRender::QBuffer(Qt3DRender::QBuffer::VertexBuffer);
+    QByteArray particleByteArray = buildParticleBuffer();
+    particleBuffer->setData(particleByteArray);
 
-    QVector<QVector3D> pos;
-    for(int i = 1; i < 10; i++)
-    {
-        dms *ra = new dms(i*36);
-        dms *dec = new dms(i*30);
-        std::shared_ptr<SkyPoint>  point(new SkyPoint(*ra, *dec));
+    //Compute material
+    COMPUTESHADER::ComputeMaterial *computeMaterial = new COMPUTESHADER::ComputeMaterial();
+    computeMaterial->setVertexBuffer(particleBuffer);
 
-        pos.append(QVector3D(point->ra().radians(), point->dec().radians(), 0));
-    }
-    qDebug()<<pos;
+    //compute entity
+    Qt3DCore::QEntity *particleComputeEntity = new Qt3DCore::QEntity(root);
+    QComputeCommand *particlesComputeJob = new QComputeCommand();
+    particleComputeEntity->addComponent(particlesComputeJob);
+    particleComputeEntity->addComponent(computeMaterial);
 
-    InstancedGeometry instGeom;
-    instGeom.setPoints(pos);
-    
-    Qt3DRender::QGeometryRenderer *sphereGeometryRenderer = new Qt3DRender::QGeometryRenderer(spheres);
-    sphereGeometryRenderer->setGeometry(&instGeom);
-    sphereGeometryRenderer->setInstanceCount(instGeom.count());
+    //Attributes of Geometry
+    QAttribute *particlePositionDataAttribute = new QAttribute();
+    particlePositionDataAttribute->setName(QStringLiteral("particlePosition"));
+    particlePositionDataAttribute->setAttributeType(QAttribute::VertexAttribute);
+    particlePositionDataAttribute->setVertexBaseType(QAttribute::Float);
+    particlePositionDataAttribute->setVertexSize(3);
+    particlePositionDataAttribute->setDivisor(1);
+    particlePositionDataAttribute->setByteOffset(0);
+    particlePositionDataAttribute->setByteStride(12 * (int)sizeof(float));
+    particlePositionDataAttribute->setBuffer(particleBuffer);
 
-    Qt3DCore::QTransform *sphereTransform = new Qt3DCore::QTransform(spheres);
+    QAttribute *particleColorDataAttribute = new QAttribute();
+    particleColorDataAttribute->setName(QStringLiteral("particleColor"));
+    particleColorDataAttribute->setAttributeType(QAttribute::VertexAttribute);
+    particleColorDataAttribute->setVertexBaseType(QAttribute::Float);
+    particleColorDataAttribute->setVertexSize(3);
+    particleColorDataAttribute->setDivisor(1);
+    particleColorDataAttribute->setByteOffset(8 * (int)sizeof(float));
+    particleColorDataAttribute->setByteStride(12 * (int)sizeof(float));
+    particleColorDataAttribute->setBuffer(particleBuffer);
 
-    Qt3DRender::QParameter *ka = new Qt3DRender::QParameter("ka", QColor::fromRgbF(0.05f, 0.05f, 0.05f, 1.0f));
-    Qt3DRender::QParameter *kd = new Qt3DRender::QParameter("kd", QColor::fromRgbF(0.7f, 0.7f, 0.7f, 1.0f));
-    Qt3DRender::QParameter *ks = new Qt3DRender::QParameter("ks", QColor::fromRgbF(0.01f, 0.01f, 0.01f, 1.0f));
-    Qt3DRender::QParameter *shininess = new Qt3DRender::QParameter("shininess", 150);
-    Qt3DRender::QParameter *inst = new Qt3DRender::QParameter("inst", instTransform);
-    Qt3DRender::QParameter *instNormal = new Qt3DRender::QParameter("instNormal", instGeom.normalMatrix(instTransform));
+    //Geometry
+    Qt3DExtras::QSphereGeometry *sphereGeometry = new Qt3DExtras::QSphereGeometry();
+    sphereGeometry->setRings(10);
+    sphereGeometry->setSlices(10);
+    sphereGeometry->setRadius(1);
+    sphereGeometry->addAttribute(particlePositionDataAttribute);
+    sphereGeometry->addAttribute(particleColorDataAttribute);
 
-    Qt3DRender::QMaterial *material = new Qt3DRender::QMaterial(spheres);
-    material->addParameter(ka);
-    material->addParameter(kd);
-    material->addParameter(ks);
-    material->addParameter(shininess);
-    material->addParameter(inst);
-    material->addParameter(instNormal);
 
-    Qt3DRender::QEffect *effect = new Qt3DRender::QEffect(material);
-    Qt3DRender::QTechnique *technique = new Qt3DRender::QTechnique(effect);
-    Qt3DRender::QRenderPass *pass = new Qt3DRender::QRenderPass(technique);
-    Qt3DRender::QShaderProgram *glShader = new Qt3DRender::QShaderProgram(pass);
+    //particle render entity
+    Qt3DCore::QEntity *particleRenderEntity = new Qt3DCore::QEntity(root);
+    QGeometryRenderer *particleRenderer = new QGeometryRenderer();
+    particleRenderer->setPrimitiveType(Qt3DRender::QGeometryRenderer::Triangles);
+    particleRenderer->setInstanceCount(PARTICLE_COUNT);
+    particleRenderer->setIndexOffset(0);
+    particleRenderer->setFirstInstance(0);
+    particleRenderer->setGeometry(sphereGeometry);
 
-    glShader->setVertexShaderCode(Qt3DRender::QShaderProgram::loadSource(QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/instanced.vert")));
-    glShader->setFragmentShaderCode(Qt3DRender::QShaderProgram::loadSource(QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/src/instanced.frag")));
+    particleRenderEntity->addComponent(particleRenderer);
+    particleRenderEntity->addComponent(computeMaterial);
 
-    pass->setShaderProgram(glShader);
-
-    technique->graphicsApiFilter()->setApi(Qt3DRender::QGraphicsApiFilter::OpenGL);
-    technique->graphicsApiFilter()->setMajorVersion(3);
-    technique->graphicsApiFilter()->setMinorVersion(1);    
-    technique->graphicsApiFilter()->setProfile(Qt3DRender::QGraphicsApiFilter::CoreProfile);
-    technique->addRenderPass(pass);
-
-    effect->addTechnique(technique);
-
-    material->setEffect(effect);
-
-    spheres->addComponent(material);
-    spheres->addComponent(sphereTransform);
-    spheres->addComponent(sphereGeometryRenderer);    
-
-    return spheres;
+    return root;
 }
+
 
 int main(int argc, char* argv[])
 {
@@ -128,52 +160,31 @@ int main(int argc, char* argv[])
 
     Qt3DExtras::Qt3DWindow view;
 
-    Qt3DCore::QEntity *root = new Qt3DCore::QEntity();
+    Qt3DCore::QEntity *rootEntity = new Qt3DCore::QEntity();
 
-    // Camera
-    Qt3DRender::QCamera *camera = view.camera();
-    camera->lens()->setPerspectiveProjection(60.0f, 16.0f/9.0f, 0.01f, 1000.0f);
-    camera->setPosition(QVector3D(0, 10, 20));
-    camera->setViewCenter(QVector3D(0, 0, 0));
-    camera->setUpVector(QVector3D(0, 1, 0));
-    camera->setAspectRatio(16/9);
+    //create camera
+    QCamera *pCamera = new QCamera;
+    pCamera->setProjectionType(QCameraLens::PerspectiveProjection);
+    pCamera->setViewCenter(QVector3D(0, 0, 0));
+    pCamera->setPosition(QVector3D(0, 0, -800.0));
+    pCamera->setNearPlane(0.1f);
+    pCamera->setFarPlane(1000.0f);
+    pCamera->setFieldOfView(25.0f);
+    pCamera->setAspectRatio(1.33f);
 
-    Qt3DRender::QRenderSurfaceSelector *renderSurfaceSelector = new Qt3DRender::QRenderSurfaceSelector(root);
+    //Compute framegraph
+    COMPUTESHADER::ComputeFramegraph *framegraph = new COMPUTESHADER::ComputeFramegraph();
+    framegraph->setCamera(pCamera);
 
-    Qt3DRender::QViewport *viewport = new Qt3DRender::QViewport(renderSurfaceSelector);
+    Qt3DExtras::QFirstPersonCameraController *pCamController = new Qt3DExtras::QFirstPersonCameraController(rootEntity);
+    pCamController->setCamera(pCamera);
 
-    viewport->setNormalizedRect(QRect(0, 0, 1, 1));
+    Qt3DCore::QEntity *paritcleEntity = createScene();
+    paritcleEntity->setParent(rootEntity);
 
-    Qt3DRender::QCameraSelector *cameraSelector = new Qt3DRender::QCameraSelector(viewport);
-    cameraSelector->setCamera(camera);
+    view.setRootEntity(rootEntity);
+    view.setActiveFrameGraph(framegraph);
 
-    Qt3DRender::QClearBuffers *clearBuffers = new Qt3DRender::QClearBuffers(cameraSelector);
-    clearBuffers->setBuffers(Qt3DRender::QClearBuffers::ColorDepthBuffer);
-
-    // manipulator
-    Qt3DExtras::QOrbitCameraController* manipulator = new Qt3DExtras::QOrbitCameraController(root);
-    manipulator->setLinearSpeed(50.f);
-    manipulator->setLookSpeed(180.f);
-    manipulator->setCamera(camera);
-
-    Qt3DCore::QEntity *skybox = addSkybox();
-    skybox->setParent(root);
-
-    Qt3DCore::QEntity *plane = new Qt3DCore::QEntity(root);
-    Qt3DExtras::QPlaneMesh *planeMesh = new Qt3DExtras::QPlaneMesh(root);
-    planeMesh->setWidth(20);
-    planeMesh->setHeight(20);
-    Qt3DExtras::QPhongMaterial *phongMaterial = new Qt3DExtras::QPhongMaterial(plane);
-    phongMaterial->setAmbient(QColor::fromRgba(qRgba(0, 0, 0.7, 1)));
-    plane->addComponent(planeMesh);
-    plane->addComponent(phongMaterial);
-
-    Qt3DCore::QEntity *scene;
-    scene = createScene();
-    scene->setParent(root);
-
-    view.setRootEntity(root);
-    view.setActiveFrameGraph(renderSurfaceSelector);
     view.show();
 
     return app.exec();
