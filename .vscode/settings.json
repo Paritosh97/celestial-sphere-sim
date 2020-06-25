@@ -80,6 +80,11 @@
         "qgeometry": "cpp",
         "qrenderaspect": "cpp",
         "qinputsettings": "cpp",
-        "qguiapplication": "cpp"
+        "qguiapplication": "cpp",
+        "qgoochmaterial": "cpp",
+        "qplanemesh": "cpp",
+        "qdepthtest": "cpp",
+        "qmouseevent": "cpp",
+        "qrendersurfaceselector": "cpp"
     }
 }

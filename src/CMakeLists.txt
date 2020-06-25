@@ -19,6 +19,7 @@ set(SOURCES
     ksnumbers.cpp
     linegeometry.cpp
     linematerial.cpp
+    qt3dwidget.cpp
     main.cpp
     )
 
