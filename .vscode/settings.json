@@ -76,6 +76,13 @@
         "qgraphicsapifilter": "cpp",
         "qmatrix4x4": "cpp",
         "qeffect": "cpp",
-        "qbuffer": "cpp"
+        "qbuffer": "cpp",
+        "qobject": "cpp",
+        "qviewport": "cpp",
+        "qresizeevent": "cpp",
+        "qgeometryrenderer": "cpp",
+        "qentity": "cpp",
+        "qtechnique": "cpp",
+        "qcuboidmesh": "cpp"
     }
 }

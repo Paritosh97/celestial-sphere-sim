@@ -3,10 +3,8 @@
 
 #include <Qt3DRender/QViewport>
 
-#include <Qt3DExtras/Qt3DWindow>
-
 #include <QObject>
-#include <QWidget>
+#include <Qt3DExtras/Qt3DWindow>
 
 #include "linegeometry.h"
 #include "linematerial.h"
@@ -17,13 +15,14 @@
 
 class SkyPoint;
 
-class Qt3DWidget : public QWidget
+class CustomWindow : public Qt3DExtras::Qt3DWindow
 {
-    Q_OBJECT
-    QWidget *container;
-
     public:
-    explicit Qt3DWidget(QWidget *parent = 0);
+    explicit CustomWindow();
+
+    protected:
+    void resizeEvent(QResizeEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
 
     private:
     Qt3DCore::QEntity* addSkybox();

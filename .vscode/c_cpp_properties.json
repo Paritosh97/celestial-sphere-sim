@@ -9,7 +9,9 @@
                 "/usr/include/qt/Qt3DExtras",
                 "/usr/include/qt/QtGui",
                 "/usr/include/qt/QtCore",
-                "/usr/include/qt/QtCore"
+                "/usr/include/qt/QtCore",
+                "/usr/include/qt/Qt3DCore/5.15.0",
+                "/usr/include/qt/QtCore/5.15.0"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/clang",

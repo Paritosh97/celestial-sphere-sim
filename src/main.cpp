@@ -1,5 +1,6 @@
-#include "qt3dwidget.h"
+#include "customwindow.h"
 #include <QApplication>
+#include <QWidget>
 
 int main(int argc, char *argv[])
 {
@@ -7,7 +8,8 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     // Window
-    Qt3DWidget *view = new Qt3DWidget();
+    CustomWindow *view = new CustomWindow();
+    view->setWindowState(Qt::WindowMaximized);
     view->show();
 
     return app.exec();

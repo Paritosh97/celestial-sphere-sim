@@ -1,8 +1,11 @@
 #version 330
 
-uniform mat4 modelViewProjection;
-
 in vec3 vertexPosition;
+out vec3 texCoord0;
+
+uniform mat4 mvp;
+uniform mat4 inverseProjectionMatrix;
+uniform mat4 inverseModelView;
 
 uniform float zoomFactor = 1;
 uniform vec2 focus = vec2(0, 0);    // TODO
@@ -134,9 +137,10 @@ highp vec3 projector()
     return screen_pos;
 }
 
-void main(void)
+void main()
 {
     highp vec3 projected_pos = projector();    
 
-    gl_Position = vec4(projected_pos, 1);
+    texCoord0 = projected_pos.xyz;
+    gl_Position = vec4(mvp * vec4(projected_pos, 1.0)).xyww;
 }

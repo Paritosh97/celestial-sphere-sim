@@ -1,4 +1,7 @@
-#include "qt3dwidget.h"
+#include "customwindow.h"
+#include "projectionskybox.h"
+
+#include <QResizeEvent>
 
 #include <Qt3DCore/QEntity>
 
@@ -8,13 +11,8 @@
 #include <Qt3DRender/QClearBuffers>
 #include <Qt3DRender/QRenderSurfaceSelector>
 
-Qt3DWidget::Qt3DWidget(QWidget *parent)
+CustomWindow::CustomWindow()
 {
-    Qt3DExtras::Qt3DWindow *window = new Qt3DExtras::Qt3DWindow;
-
-    container = createWindowContainer(window, this);
-    container->setMinimumSize(QSize(800, 600));
-
     Qt3DRender::QRenderSurfaceSelector *surfaceSelector = new Qt3DRender::QRenderSurfaceSelector;
     surfaceSelector->setSurface(this);
 
@@ -25,28 +23,31 @@ Qt3DWidget::Qt3DWidget(QWidget *parent)
     clearBuffers->setBuffers(Qt3DRender::QClearBuffers::ColorDepthBuffer);
     clearBuffers->setClearColor(Qt::white);
 
-    window->setActiveFrameGraph(surfaceSelector);
+    setActiveFrameGraph(surfaceSelector);
     Qt3DCore::QEntity *root = createScene();
-    window->setRootEntity(root);
+
+    setRootEntity(root);
 }
 
-Qt3DCore::QEntity* Qt3DWidget::addSkybox()
+Qt3DCore::QEntity* CustomWindow::addSkybox()
 {
-    // TODO add custom skybox
+    //Qt3DCore::QEntity *skybox = new Qt3DCore::QEntity;
 
-    Qt3DCore::QEntity *skybox = new Qt3DCore::QEntity;
-    /*
-    Qt3DExtras::QSkyboxEntity* skybox = new Qt3DExtras::QSkyboxEntity;
     QString path = QUrl::fromLocalFile("/home/paritosh/Desktop/gsoc/celestial-sphere-sim/skybox/park").toString();
-    skybox->setBaseName(path);
-    skybox->setExtension(".png");
-    */
+
+    ProjectionSkybox* skybox = new ProjectionSkybox(path);
+    Qt3DCore::QTransform *transform = new Qt3DCore::QTransform;
+
+    transform->setRotation(QQuaternion::fromEulerAngles(QVector3D(45, 0, 0)));
+
+    skybox->addComponent(transform);
+    
     return skybox;
 }
 
-void Qt3DWidget::fillLineList(std::shared_ptr<LineList> lineList, int j)
+void CustomWindow::fillLineList(std::shared_ptr<LineList> lineList, int j)
 {
-    for(int i = 1; i < 10; i++)
+    for(int i = 0; i < 10; i++)
     {
         dms *ra = new dms(10*i);
         dms *dec = new dms(10*j);
@@ -55,11 +56,11 @@ void Qt3DWidget::fillLineList(std::shared_ptr<LineList> lineList, int j)
     }    
 }
 
-std::shared_ptr<LineListList> Qt3DWidget::fillLineListList()
+std::shared_ptr<LineListList> CustomWindow::fillLineListList()
 {
     std::shared_ptr<LineListList> lineListList(new LineListList);
 
-    for(int i = 1; i < 10; i++)
+    for(int i = 0; i < 10; i++)
     {
         std::shared_ptr<LineList> lineList(new LineList);
         fillLineList(lineList, i);
@@ -69,7 +70,7 @@ std::shared_ptr<LineListList> Qt3DWidget::fillLineListList()
     return lineListList;
 }
 
-Qt3DCore::QEntity* Qt3DWidget::addLine(SkyPoint *pLast, SkyPoint *pThis)
+Qt3DCore::QEntity* CustomWindow::addLine(SkyPoint *pLast, SkyPoint *pThis)
 {
     // Root entity
     Qt3DCore::QEntity *lineEntity = new Qt3DCore::QEntity;
@@ -107,13 +108,13 @@ Qt3DCore::QEntity* Qt3DWidget::addLine(SkyPoint *pLast, SkyPoint *pThis)
     return lineEntity;
 }
 
-Qt3DCore::QEntity* Qt3DWidget::addSkyPolyline(LineList *lineList)
+Qt3DCore::QEntity* CustomWindow::addSkyPolyline(LineList *lineList)
 {
     Qt3DCore::QEntity* skyPolyLine = new Qt3DCore::QEntity();
 
     SkyList *points = lineList->points();
 
-    for (int j = 1; j < points->size(); j++)
+    for (int j = 0; j < points->size(); j++)
     {
         SkyPoint *pLast = points->at(j++).get();
         SkyPoint *pThis = points->at(j).get();
@@ -124,7 +125,7 @@ Qt3DCore::QEntity* Qt3DWidget::addSkyPolyline(LineList *lineList)
     return skyPolyLine;
 }
 
-Qt3DCore::QEntity* Qt3DWidget::addLines()
+Qt3DCore::QEntity* CustomWindow::addLines()
 {
     // Add lines on the celestial sphere
     Qt3DCore::QEntity* lines = new Qt3DCore::QEntity();
@@ -142,7 +143,7 @@ Qt3DCore::QEntity* Qt3DWidget::addLines()
     return lines;
 }
 
-Qt3DCore::QEntity* Qt3DWidget::createScene()
+Qt3DCore::QEntity* CustomWindow::createScene()
 {
     Qt3DCore::QEntity *root = new Qt3DCore::QEntity;
 
@@ -155,4 +156,16 @@ Qt3DCore::QEntity* Qt3DWidget::createScene()
     lines->setParent(root);
 
     return root;
+}
+
+void CustomWindow::resizeEvent(QResizeEvent *event)
+{
+    setMinimumWidth(event->size().width());
+    setMinimumHeight(event->size().height());
+}
+
+void CustomWindow::mouseMoveEvent(QMouseEvent *event)
+{
+    if(event->buttons())
+        qDebug()<<event->pos();
 }

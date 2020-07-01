@@ -19,7 +19,8 @@ set(SOURCES
     ksnumbers.cpp
     linegeometry.cpp
     linematerial.cpp
-    qt3dwidget.cpp
+    customwindow.cpp
+    projectionskybox.cpp
     main.cpp
     )
 
